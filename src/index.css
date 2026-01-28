@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Eye-friendly color palette - Vercel Geist inspired */
+:root {
+  /* Base colors - comfortable for extended viewing */
+  --color-bg-primary: #0f1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-tertiary: #1c2128;
+  
+  /* Text colors - good contrast without harsh brightness */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #6e7681;
+  
+  /* Accent colors - muted and easy on eyes */
+  --color-accent-blue: #58a6ff;
+  --color-accent-green: #3fb950;
+  --color-accent-red: #f85149;
+  --color-accent-yellow: #d29922;
+  --color-accent-purple: #bc8ef0;
+  --color-accent-cyan: #79c0ff;
+}
+
+/* Set default background ke mode gelap agar konsisten */
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Kustomisasi Scrollbar agar pas dengan tema Dark Mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+  background-color: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full;
+  background-color: var(--color-bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
+  background-color: var(--color-text-muted);
+}
