@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useFirebase } from '../lib/firebaseContext.jsx';
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, serverTimestamp } from 'firebase/firestore';
 import { Send, Plus, Trash2, Settings, MessageSquare, Sparkles, Copy, Check, AlertCircle } from 'lucide-react';
 
-const AI = ({ user }) => {
-  const { db } = useFirebase();
+const AI = ({ user, db }) => {
   const appId = 'airdrop-tracker-prod';
   const [activeTab, setActiveTab] = useState('chat');
   const [providers, setProviders] = useState({});

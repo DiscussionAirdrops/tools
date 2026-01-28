@@ -5,18 +5,17 @@ import React, { createContext, useContext } from 'react';
 // Firebase instances context
 const FirebaseContext = createContext(null);
 
-export const setFirebaseContext = (firebaseData) => {
-  // This will be set by App.jsx
-  window.__firebaseContext = firebaseData;
-};
-
 export const useFirebase = () => {
-  return window.__firebaseContext || { db: null, auth: null, app: null };
+  const context = useContext(FirebaseContext);
+  if (!context) {
+    console.error('[v0] Firebase context not found. Make sure FirebaseProvider wraps your app.');
+  }
+  return context || { db: null, auth: null, app: null };
 };
 
 export const FirebaseProvider = ({ children, db, auth, app }) => {
   React.useEffect(() => {
-    setFirebaseContext({ db, auth, app });
+    console.log('[v0] FirebaseProvider mounted with db:', !!db, 'auth:', !!auth, 'app:', !!app);
   }, [db, auth, app]);
 
   return (

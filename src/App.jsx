@@ -47,8 +47,7 @@ import QuickAddForm from './components/QuickAddForm';
 // Import Firestore Service
 import { initializeFirestore, getUserAirdrops, addAirdrop, updateAirdrop, deleteAirdrop, getUserWallets, addWallet, updateWallet, deleteWallet } from './lib/firebaseService';
 
-// Import Supabase Service
-// import { getAirdrops, subscribeToAirdrops, insertAirdrop } from './lib/supabaseService';
+
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp, getApps } from 'firebase/app';
@@ -576,6 +575,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedWallet, setSelectedWallet] = useState('all');
   const [user, setUser] = useState(null);
+  const [dbInstance, setDbInstance] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [isDonateOpen, setIsDonateOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -618,11 +618,13 @@ const App = () => {
       return;
     }
     
-    // Initialize Firestore service
+    // Initialize Firestore service and get db instance
     if (appInstance) {
       try {
         initializeFirestore(appInstance);
-        console.log("[v0] Firestore service initialized");
+        db = getFirestore(appInstance);
+        setDbInstance(db);
+        console.log("[v0] Firestore service initialized, db:", !!db);
       } catch (e) {
         console.warn("[v0] Firestore service init warning:", e.message);
       }
@@ -1118,17 +1120,17 @@ const App = () => {
                   {/* Conditional Rendering for Tabs */}
                   {activeTab === 'wallets' ? (
                       // WALLET MANAGER VIEW
-                      <WalletComponent user={user} />
+                      <WalletComponent user={user} db={dbInstance} />
                   ) : activeTab === 'twitter' ? (
                       // TWITTER MANAGER VIEW
-                      <TwitterComponent user={user} />
+                      <TwitterComponent user={user} db={dbInstance} />
 
                   ) : activeTab === 'youtube' ? (
                       // YOUTUBE CHANNEL VIEW
                       <YouTubeComponent user={user} />
                   ) : activeTab === 'ai' ? (
                       // AI ASSISTANT VIEW
-                      <AIComponent user={user} />
+                      <AIComponent user={user} db={dbInstance} />
                   ) : activeTab === 'done' ? (
                       // DONE TASKS VIEW
                       <div className="rounded-xl border border-slate-800 bg-slate-900 shadow-sm">

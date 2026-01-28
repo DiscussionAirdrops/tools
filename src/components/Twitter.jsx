@@ -22,11 +22,9 @@ import {
   orderBy,
   serverTimestamp
 } from 'firebase/firestore';
-import { useFirebase } from '../lib/firebaseContext.jsx';
 import { extractTwitterUsername, fetchTwitterProfileData, getTwitterProfileUrl } from '../lib/twitterUtils';
 
-const Twitter = ({ user }) => {
-  const { db } = useFirebase();
+const Twitter = ({ user, db }) => {
   const appId = 'airdrop-tracker-prod';
   const [twitterAccounts, setTwitterAccounts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

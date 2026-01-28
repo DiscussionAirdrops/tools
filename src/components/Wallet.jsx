@@ -16,8 +16,7 @@ import {
   Loader,
   Download,
   Search,
-  Filter,
-  Calculator
+  Filter
 } from 'lucide-react';
 import { 
   collection, 
@@ -30,13 +29,11 @@ import {
   serverTimestamp,
   updateDoc
 } from 'firebase/firestore';
-import { useFirebase } from '../lib/firebaseContext.jsx';
 import { fetchBalanceInUSD } from '../lib/blockchainUtils';
 import { exportToCSV, exportToJSON, formatWalletsForExport } from '../lib/exportUtils';
 import { searchWallets, filterWalletsByChain, filterWalletsByBalance, sortWalletsByBalance } from '../lib/searchUtils';
 
-const Wallet = ({ user }) => {
-  const { db } = useFirebase();
+const Wallet = ({ user, db }) => {
   const appId = 'airdrop-tracker-prod';
   const [wallets, setWallets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,10 +47,6 @@ const Wallet = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedChain, setSelectedChain] = useState('all');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [calcDisplay, setCalcDisplay] = useState('0');
-  const [calcPrevValue, setCalcPrevValue] = useState(null);
-  const [calcOperation, setCalcOperation] = useState(null);
-  const [calcNewNumber, setCalcNewNumber] = useState(true);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -61,7 +54,7 @@ const Wallet = ({ user }) => {
     address: '',
     chain: 'Ethereum'
   });
-  
+
   const chainOptions = [
     'Ethereum', 'BSC', 'Polygon', 'Arbitrum', 'Optimism', 'Base',
     'Avalanche', 'Fantom', 'zkSync', 'Linea', 'Mantle',
@@ -106,24 +99,30 @@ const Wallet = ({ user }) => {
     
     setIsLoading(true);
     
-    const q = query(
-      collection(db, 'artifacts', appId, 'users', user.uid, 'wallets'),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setWallets(data);
-      setIsLoading(false);
-    }, (err) => {
-      console.error('[v0] Wallet.jsx Error fetching wallets:', err.message);
+    try {
+      const q = query(
+        collection(db, 'artifacts', appId, 'users', user.uid, 'wallets'),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setWallets(data);
+        setIsLoading(false);
+      }, (err) => {
+        console.error('[v0] Wallet.jsx Error fetching wallets:', err.message);
+        setError('Failed to load wallets: ' + err.message);
+        setIsLoading(false);
+      });
+      
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('[v0] Wallet.jsx Error setting up listener:', err.message);
       setError('Failed to load wallets: ' + err.message);
       setIsLoading(false);
-    });
-    
-    return () => unsubscribe();
-  }, [user, db, appId]);
-
+    }
+  }, [user, db]);
+  
   // Fetch balances for all wallets
   const handleRefreshBalances = React.useCallback(async () => {
     if (wallets.length === 0) return;
@@ -159,64 +158,11 @@ const Wallet = ({ user }) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [wallets, db, appId, user]);
-
+  }, [wallets, db, user]);
+  
   // Calculate total balance (USD)
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balanceUSD || 0), 0);
   const totalTokens = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
-
-  // Calculator functions
-  const calcHandleNumber = (num) => {
-    setCalcDisplay(calcDisplay === '0' ? String(num) : calcDisplay + num);
-    setCalcNewNumber(false);
-  };
-
-  const calcHandleOperation = (op) => {
-    const currentValue = parseFloat(calcDisplay);
-    if (calcPrevValue === null) {
-      setCalcPrevValue(currentValue);
-      setCalcDisplay(calcDisplay + ' ' + op + ' ');
-    } else if (calcOperation) {
-      const result = calcPerformOperation(calcPrevValue, currentValue, calcOperation);
-      setCalcDisplay(result + ' ' + op + ' ');
-      setCalcPrevValue(result);
-    }
-    setCalcOperation(op);
-    setCalcNewNumber(true);
-  };
-
-  const calcPerformOperation = (prev, current, op) => {
-    switch (op) {
-      case '+': return prev + current;
-      case '-': return prev - current;
-      case '*': return prev * current;
-      case '/': return current !== 0 ? prev / current : 0;
-      default: return current;
-    }
-  };
-
-  const calcHandleEquals = () => {
-    if (calcDisplay.includes(' ')) {
-      const parts = calcDisplay.split(' ');
-      if (parts.length >= 3) {
-        const firstNum = parseFloat(parts[0]);
-        const op = parts[1];
-        const lastNum = parseFloat(parts[2]);
-        const result = calcPerformOperation(firstNum, lastNum, op);
-        setCalcDisplay(String(result));
-        setCalcPrevValue(null);
-        setCalcOperation(null);
-        setCalcNewNumber(true);
-      }
-    }
-  };
-
-  const calcHandleClear = () => {
-    setCalcDisplay('0');
-    setCalcPrevValue(null);
-    setCalcOperation(null);
-    setCalcNewNumber(true);
-  };
 
   // Add new wallet
   const handleAddWallet = async (e) => {
@@ -232,6 +178,11 @@ const Wallet = ({ user }) => {
       return;
     }
 
+    if (!db) {
+      setError('Database not initialized');
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'wallets'), {
         name: formData.name.trim(),
@@ -243,7 +194,6 @@ const Wallet = ({ user }) => {
         lastUpdated: serverTimestamp()
       });
 
-      console.log("[v0] Wallet.jsx: Wallet added successfully");
       setFormData({ name: '', address: '', chain: 'Ethereum' });
       setIsAdding(false);
       setError(null);
@@ -252,7 +202,7 @@ const Wallet = ({ user }) => {
       setError('Failed to add wallet: ' + err.message);
     }
   };
-
+  
   // Delete wallet
   const handleDeleteWallet = async (walletId) => {
     if (!confirm('Are you sure you want to delete this wallet?')) return;
@@ -265,7 +215,7 @@ const Wallet = ({ user }) => {
       setError('Failed to delete wallet');
     }
   };
-
+  
   // Refresh wallet balance for a specific network
   const handleRefreshSpecific = async (walletId, chain) => {
     try {
@@ -440,106 +390,6 @@ const Wallet = ({ user }) => {
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
-        </div>
-      </div>
-
-      {/* CALCULATOR SECTION */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 space-y-4">
-        <h3 className="font-semibold text-white flex items-center gap-2">
-          <Calculator size={18} className="text-cyan-400"/> Calculator
-        </h3>
-        
-        <div className="bg-slate-950 rounded-lg p-3 space-y-2 max-w-sm">
-          {/* Display */}
-          <div className="bg-slate-800 rounded-lg p-3 text-right">
-            <div className="text-2xl font-mono font-bold text-cyan-400 truncate">
-              {calcDisplay}
-            </div>
-          </div>
-
-          {/* Calculator Grid */}
-          <div className="grid grid-cols-4 gap-1">
-            <button
-              onClick={calcHandleClear}
-              className="col-span-2 bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => calcHandleOperation('/')}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              ÷
-            </button>
-            <button
-              onClick={() => calcHandleOperation('*')}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              ×
-            </button>
-
-            {[7, 8, 9].map((num) => (
-              <button
-                key={num}
-                onClick={() => calcHandleNumber(num)}
-                className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              onClick={() => calcHandleOperation('-')}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              -
-            </button>
-
-            {[4, 5, 6].map((num) => (
-              <button
-                key={num}
-                onClick={() => calcHandleNumber(num)}
-                className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              onClick={() => calcHandleOperation('+')}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1 px-2 rounded transition-colors row-span-2 text-xs"
-            >
-              +
-            </button>
-
-            {[1, 2, 3].map((num) => (
-              <button
-                key={num}
-                onClick={() => calcHandleNumber(num)}
-                className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-              >
-                {num}
-              </button>
-            ))}
-
-            <button
-              onClick={() => calcHandleNumber(0)}
-              className="col-span-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              0
-            </button>
-            <button
-              onClick={() => setCalcDisplay(calcDisplay === '0' ? '0' : calcDisplay + '.')}
-              className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              .
-            </button>
-
-            <button
-              onClick={calcHandleEquals}
-              className="col-span-2 bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-2 rounded transition-colors text-xs"
-            >
-              =
-            </button>
-          </div>
         </div>
       </div>
 
