@@ -47,6 +47,7 @@ const Wallet = ({ user, db }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedChain, setSelectedChain] = useState('all');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [copiedAddress, setCopiedAddress] = useState(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -123,18 +124,19 @@ const Wallet = ({ user, db }) => {
     }
   }, [user, db]);
   
-  // Fetch balances for all wallets
+  // Fetch balances for all wallets (auto-refresh)
   const handleRefreshBalances = React.useCallback(async () => {
     if (wallets.length === 0) return;
     
     setIsRefreshing(true);
-    console.log('[v0] Starting balance refresh for all wallets');
+    console.log('[v0] Starting balance refresh for', wallets.length, 'wallets');
 
     try {
       for (const wallet of wallets) {
         try {
-          console.log(`[v0] Fetching balance for ${wallet.name} (${wallet.chain})`);
+          console.log(`[v0] Fetching balance for ${wallet.name} (${wallet.chain}) at ${wallet.address}`);
           const balanceData = await fetchBalanceInUSD(wallet.address, wallet.chain);
+          console.log(`[v0] Balance fetched for ${wallet.name}:`, balanceData);
           
           // Update wallet in Firebase with new balance
           const walletRef = doc(db, 'artifacts', appId, 'users', user.uid, 'wallets', wallet.id);
@@ -142,23 +144,36 @@ const Wallet = ({ user, db }) => {
             balance: balanceData.balance,
             balanceUSD: balanceData.balanceUSD,
             price: balanceData.price,
+            tokenSymbol: getTokenSymbol(wallet.chain),
             lastUpdated: serverTimestamp()
           });
           
-          console.log(`[v0] Updated ${wallet.name}:`, balanceData);
+          console.log(`[v0] Updated ${wallet.name} in Firebase`);
         } catch (err) {
           console.error(`[v0] Error updating ${wallet.name}:`, err.message);
         }
       }
       
       setError(null);
+      console.log('[v0] All wallets refreshed successfully');
     } catch (err) {
       console.error('[v0] Error refreshing balances:', err.message);
-      setError('Failed to refresh balances');
+      setError('Failed to refresh balances: ' + err.message);
     } finally {
       setIsRefreshing(false);
     }
-  }, [wallets, db, user]);
+  }, [wallets, db, user, appId]);
+  
+  // Auto-refresh all wallets when wallets list changes
+  useEffect(() => {
+    if (wallets.length > 0 && !isRefreshing) {
+      const timer = setTimeout(() => {
+        console.log('[v0] Auto-refreshing all wallet balances');
+        handleRefreshBalances();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [wallets.length]);
   
   // Calculate total balance (USD)
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balanceUSD || 0), 0);
@@ -317,7 +332,13 @@ const Wallet = ({ user, db }) => {
 
   const handleCopyAddress = (address) => {
     navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
     console.log(`Address ${address} copied to clipboard`);
+    
+    // Reset after 2 seconds
+    setTimeout(() => {
+      setCopiedAddress(null);
+    }, 2000);
   };
 
   if (isLoading && !user) {
@@ -345,16 +366,16 @@ const Wallet = ({ user, db }) => {
       )}
 
       {/* Total Balance Card */}
-      <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-8">
-        <div className="flex items-start justify-between mb-6">
+      <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-4 md:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
           <div>
             <p className="text-slate-400 text-sm mb-2 flex items-center gap-2">
               <WalletIcon size={16} className="text-indigo-400" />
               Total Portfolio Value
             </p>
             <div className="flex items-baseline gap-2">
-              <span className={`text-4xl font-bold ${isHidden ? 'text-slate-600' : 'text-white'}`}>
-                {isHidden ? '••••••' : `$${(totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              <span className={`text-2xl md:text-4xl font-bold ${isHidden ? 'text-slate-600' : 'text-white'}`}>
+                {isHidden ? '******' : `$${(totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </span>
               <span className="text-sm text-slate-500">USD</span>
             </div>
@@ -467,7 +488,12 @@ const Wallet = ({ user, db }) => {
         <div className="divide-y divide-slate-800">
           {(() => {
             let filtered = searchWallets(filterWalletsByChain(wallets, selectedChain), searchTerm);
-            filtered = sortWalletsByBalance(filtered, sortOrder);
+            // Sort by createdAt ascending (newest at bottom)
+            filtered = filtered.sort((a, b) => {
+              const timeA = a.createdAt?.toMillis?.() || 0;
+              const timeB = b.createdAt?.toMillis?.() || 0;
+              return timeA - timeB; // ascending = oldest first (top), newest last (bottom)
+            });
             
             if (filtered.length === 0) {
               return (
@@ -493,8 +519,22 @@ const Wallet = ({ user, db }) => {
               );
             }
 
-            return filtered.map((wallet) => (
-              <div key={wallet.id} className="p-6 hover:bg-slate-800/30 transition-colors">
+            return filtered.map((wallet, index) => {
+              // Generate distinct color per wallet based on index
+              const colorSchemes = [
+                { bg: 'bg-blue-900/20', border: 'border-blue-700/40', accent: 'bg-blue-600/20' },
+                { bg: 'bg-purple-900/20', border: 'border-purple-700/40', accent: 'bg-purple-600/20' },
+                { bg: 'bg-green-900/20', border: 'border-green-700/40', accent: 'bg-green-600/20' },
+                { bg: 'bg-amber-900/20', border: 'border-amber-700/40', accent: 'bg-amber-600/20' },
+                { bg: 'bg-rose-900/20', border: 'border-rose-700/40', accent: 'bg-rose-600/20' },
+                { bg: 'bg-cyan-900/20', border: 'border-cyan-700/40', accent: 'bg-cyan-600/20' },
+                { bg: 'bg-indigo-900/20', border: 'border-indigo-700/40', accent: 'bg-indigo-600/20' },
+                { bg: 'bg-teal-900/20', border: 'border-teal-700/40', accent: 'bg-teal-600/20' }
+              ];
+              const colors = colorSchemes[index % colorSchemes.length];
+
+              return (
+              <div key={wallet.id} className={`p-6 border-l-4 ${colors.border} ${colors.bg} hover:${colors.bg} transition-colors`}>
                 <div className="flex items-start justify-between gap-4">
                   {/* Wallet Info */}
                   <div className="flex-1 min-w-0">
@@ -509,7 +549,12 @@ const Wallet = ({ user, db }) => {
                         <Coins size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-semibold">{wallet.name}</h4>
+                        <h4 className="text-white font-semibold flex items-center gap-2">
+                          {wallet.name}
+                          <span className="text-xs font-bold bg-indigo-600/30 text-indigo-300 px-2 py-1 rounded">
+                            #{index + 1}
+                          </span>
+                        </h4>
                         <p className="text-xs text-slate-500">{wallet.chain}</p>
                       </div>
                     </div>
@@ -519,15 +564,20 @@ const Wallet = ({ user, db }) => {
                       <code className="font-mono flex-1 truncate">{wallet.address}</code>
                       <button
                         onClick={() => handleCopyAddress(wallet.address)}
-                        className="p-1 hover:text-slate-200 transition-colors"
+                        className="p-1 hover:text-slate-200 transition-colors flex items-center gap-1 min-w-max"
                         title="Copy address"
                       >
                         <Copy size={14} />
+                        {copiedAddress === wallet.address && (
+                          <span className="text-xs font-semibold text-green-400 animate-fade-in">
+                            Copied!
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  {/* Balance & Actions */}
+                    {/* Balance & Actions */}
                   <div className="text-right space-y-3 flex flex-col items-end">
                     <div className="flex items-end gap-4">
                       <div>
@@ -535,12 +585,12 @@ const Wallet = ({ user, db }) => {
                         <p className={`text-2xl font-bold ${isHidden ? 'text-slate-600' : 'text-white'}`}>
                           {isHidden ? '••••' : `${(wallet.balance || 0).toFixed(6)}`}
                         </p>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-slate-300 mt-1 font-semibold">
                           {getTokenSymbol(wallet.chain)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-slate-500 mb-1">USD</p>
+                        <p className="text-xs text-slate-500 mb-1">USD Value</p>
                         <p className={`text-lg font-semibold ${isHidden ? 'text-slate-600' : 'text-slate-300'}`}>
                           {isHidden ? '••••' : `$${(wallet.balanceUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         </p>
@@ -580,7 +630,8 @@ const Wallet = ({ user, db }) => {
                   </div>
                 </div>
               </div>
-            ))
+              );
+            });
           })()}
         </div>
       </div>

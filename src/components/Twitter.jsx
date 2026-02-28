@@ -170,20 +170,20 @@ const Twitter = ({ user, db }) => {
       )}
 
       {/* Header with Add Button */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-lg bg-blue-900/30">
-              <TwitterIcon size={24} className="text-blue-400" />
+            <div className="p-2 md:p-3 rounded-lg bg-blue-900/30">
+              <TwitterIcon size={20} className="text-blue-400 md:w-6 md:h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Twitter Accounts</h2>
-              <p className="text-sm text-slate-400">{twitterAccounts.length} account{twitterAccounts.length !== 1 ? 's' : ''} connected</p>
+              <h2 className="text-lg md:text-xl font-bold text-white">Twitter Accounts</h2>
+              <p className="text-xs md:text-sm text-slate-400">{twitterAccounts.length} account{twitterAccounts.length !== 1 ? 's' : ''} connected</p>
             </div>
           </div>
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-all"
+            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-all w-full sm:w-auto"
           >
             <Plus size={16} />
             Add Twitter

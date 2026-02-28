@@ -321,22 +321,22 @@ const AI = ({ user, db }) => {
       `}</style>
 
       {/* Header */}
-      <div className="glass-effect border-b border-slate-700/30 px-6 py-4">
+      <div className="glass-effect border-b border-slate-700/30 px-4 md:px-6 py-4">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 animate-slideIn">
+          <div className="flex items-center gap-2 md:gap-3 animate-slideIn">
             <div className="relative">
-              <Sparkles className="w-6 h-6 text-violet-400 animate-pulse-soft" />
+              <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-violet-400 animate-pulse-soft" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">AI Assistant</h1>
+            <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">AI Assistant</h1>
           </div>
           <div className="flex gap-2">
             {activeTab === 'chat' && messages.length > 0 && (
               <button
                 onClick={handleClearChat}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-rose-500/20 to-red-500/20 hover:from-rose-500/30 hover:to-red-500/30 text-rose-300 transition-all duration-300 border border-rose-500/30 hover:border-rose-500/50"
+                className="flex items-center gap-1 md:gap-2 px-2 md:px-4 py-2 rounded-lg bg-gradient-to-r from-rose-500/20 to-red-500/20 hover:from-rose-500/30 hover:to-red-500/30 text-rose-300 transition-all duration-300 border border-rose-500/30 hover:border-rose-500/50 text-xs md:text-sm"
               >
                 <Trash2 className="w-4 h-4" />
-                Clear Chat
+                <span className="hidden sm:inline">Clear Chat</span>
               </button>
             )}
           </div>
@@ -346,7 +346,7 @@ const AI = ({ user, db }) => {
         <div className="flex gap-1 border-b border-slate-700/30">
           <button
             onClick={() => setActiveTab('chat')}
-            className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-300 border-b-2 ${
+            className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 text-sm font-medium transition-all duration-300 border-b-2 ${
               activeTab === 'chat'
                 ? 'border-violet-500 text-violet-400 bg-violet-500/10'
                 : 'border-transparent text-slate-400 hover:text-slate-300'
@@ -357,7 +357,7 @@ const AI = ({ user, db }) => {
           </button>
           <button
             onClick={() => setActiveTab('providers')}
-            className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-300 border-b-2 ${
+            className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 text-sm font-medium transition-all duration-300 border-b-2 ${
               activeTab === 'providers'
                 ? 'border-violet-500 text-violet-400 bg-violet-500/10'
                 : 'border-transparent text-slate-400 hover:text-slate-300'
@@ -375,7 +375,7 @@ const AI = ({ user, db }) => {
           // Chat View
           <div className="w-full flex flex-col">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center">

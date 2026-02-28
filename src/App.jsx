@@ -32,12 +32,14 @@ import {
   Search,
   ExternalLink,
   Calendar,
-  Star
+  Star,
+  Wrench
 } from 'lucide-react';
 
 // Import Components
 import Auth from './components/Auth';
 import WalletComponent from './components/Wallet';
+import ToolsComponent from './components/Tools';
 import TwitterComponent from './components/Twitter';
 import SettingsComponent from './components/Settings';
 import AIComponent from './components/AI';
@@ -67,18 +69,10 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from 'firebase/auth';
-
-// Import Wagmi and RainbowKit
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { config } from './lib/wagmiConfig';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 // --- CONFIGURATION ---
 const ALLOWED_TAGS = ['airdrop', 'testnet', 'waitlist', 'info', 'update', 'yapping'];
-
-// Create QueryClient instance
-const queryClient = new QueryClient();
 
 // Get Firebase config from Environment Variables (PRIMARY) or localStorage (FALLBACK)
 const getFirebaseConfig = () => {
@@ -412,7 +406,7 @@ const AddTaskModal = ({ isOpen, onClose, onAdd, wallets }) => {
 };
 
 // --- SIDEBAR COMPONENT ---
-const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
+const Sidebar = ({ activeTab, setActiveTab, tags, types, isMobileOpen, onMobileClose }) => {
   const sortedTags = useMemo(() => {
     return tags.sort((a, b) => {
       const indexA = ALLOWED_TAGS.indexOf(a);
@@ -427,13 +421,35 @@ const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
   }, [tags]);
 
   return (
-    <aside className="hidden w-64 flex-col border-r border-slate-800 bg-slate-900 md:flex">
-      <div className="flex h-16 items-center border-b border-slate-800 px-6">
-        <div className="flex items-center gap-2 text-indigo-400">
-          <img src="/logo.png" alt="Logo" className="h-6 w-6 object-contain" />
-          <span className="text-lg font-bold tracking-tight text-white">Discussion Airdrops Tools</span>
+    <>
+      {/* Mobile Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-slate-800 bg-slate-900 
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0 md:flex
+      `}>
+        <div className="flex h-16 items-center justify-between border-b border-slate-800 px-6">
+          <div className="flex items-center gap-2 text-indigo-400">
+            <img src="/logo.png" alt="Logo" className="h-6 w-6 object-contain" />
+            <span className="text-lg font-bold tracking-tight text-white">Discussion Airdrops</span>
+          </div>
+          {/* Close button for mobile */}
+          <button 
+            onClick={onMobileClose}
+            className="md:hidden p-2 text-slate-400 hover:text-white"
+          >
+            <X size={20} />
+          </button>
         </div>
-      </div>
       
       <div className="flex-1 overflow-y-auto py-4 px-4 custom-scrollbar">
         <nav className="space-y-1">
@@ -441,6 +457,7 @@ const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'wallets', label: 'My Wallets', icon: Wallet },
             { id: 'twitter', label: 'Twitter', icon: Twitter },
+            { id: 'tools', label: 'Tools', icon: Wrench },
             { id: 'ai', label: 'AI Assistant', icon: Sparkles },
             { id: 'youtube', label: 'YouTube', icon: Youtube },
             { id: 'done', label: 'DONE', icon: CheckCircle },
@@ -449,7 +466,7 @@ const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { setActiveTab(item.id); onMobileClose(); }}
               className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors relative ${
                 activeTab === item.id 
                   ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
@@ -474,7 +491,7 @@ const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
               {types.map((type) => (
                 <button
                   key={type}
-                  onClick={() => setActiveTab(`type-${type}`)}
+                  onClick={() => { setActiveTab(`type-${type}`); onMobileClose(); }}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     activeTab === `type-${type}`
                       ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
@@ -503,7 +520,7 @@ const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
                 return (
                   <button
                     key={tag}
-                    onClick={() => setActiveTab(`tag-${tag}`)}
+                    onClick={() => { setActiveTab(`tag-${tag}`); onMobileClose(); }}
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       activeTab === `tag-${tag}`
                         ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
@@ -538,6 +555,7 @@ const Sidebar = ({ activeTab, setActiveTab, tags, types }) => {
         </div>
       </div>
     </aside>
+    </>
   );
 };
 
@@ -589,6 +607,8 @@ const App = () => {
     return saved ? parseInt(saved) : 0; // Default 00:00 (midnight)
   });
   const [sortBy, setSortBy] = useState('date');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [aiProviders, setAiProviders] = useState({});
   const fileInputRef = useRef(null);
   const [telegramLink, setTelegramLink] = useState(''); // Declare telegramLink
 
@@ -652,6 +672,28 @@ const App = () => {
     
     return () => unsubscribe();
   }, []);
+
+  // 1.5. LOAD AI PROVIDERS FROM FIRESTORE
+  useEffect(() => {
+    if (!user || !dbInstance) return;
+    
+    const loadAiProviders = async () => {
+      try {
+        const q = query(collection(dbInstance, 'artifacts', appId, 'users', user.uid, 'aiProviders'));
+        const snapshot = await getDocs(q);
+        const providersMap = {};
+        snapshot.docs.forEach(doc => {
+          providersMap[doc.id] = { id: doc.id, ...doc.data() };
+        });
+        setAiProviders(providersMap);
+        console.log('[v0] AI Providers loaded for ProjectScanner:', Object.keys(providersMap));
+      } catch (err) {
+        console.error('[v0] Error loading AI providers:', err);
+      }
+    };
+    
+    loadAiProviders();
+  }, [user, dbInstance]);
 
   // 2. FIRESTORE SYNC & DAILY LOGIC
   useEffect(() => {
@@ -1044,6 +1086,7 @@ const App = () => {
   
       if (activeTab === 'ai') return 'AI Assistant';
       if (activeTab === 'twitter') return 'Twitter Management';
+      if (activeTab === 'tools') return 'Developer Tools';
       if (activeTab === 'youtube') return 'YouTube Channel';
       if (activeTab === 'settings') return 'Settings & Configuration';
       return 'Dashboard';
@@ -1074,48 +1117,61 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <WagmiProvider config={config}>
-        <RainbowKitProvider>
           <div className="flex h-screen bg-slate-900 font-sans text-slate-100">
-            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} tags={availableTags} types={availableTypes} />
+            <Sidebar 
+              activeTab={activeTab} 
+              setActiveTab={setActiveTab} 
+              tags={availableTags} 
+              types={availableTypes}
+              isMobileOpen={isMobileSidebarOpen}
+              onMobileClose={() => setIsMobileSidebarOpen(false)}
+            />
             <DonateModal isOpen={isDonateOpen} onClose={() => setIsDonateOpen(false)} />
             <QuickAddForm onAdd={addTask} wallets={WALLETS} />
 
-            {/* Main Content Area */}
-            <main className="flex flex-1 flex-col overflow-hidden">
+      {/* Main Content Area */}
+      <main className="flex flex-1 flex-col overflow-hidden">
               
               {/* Top Header */}
-              <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-900 px-8">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-xl font-semibold text-white">
+              <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 md:px-8">
+                <div className="flex items-center gap-3">
+                  {/* Mobile menu button */}
+                  <button 
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
+                  >
+                    <Menu size={24} />
+                  </button>
+                  <h2 className="text-lg md:text-xl font-semibold text-white truncate">
                     {getPageTitle()}
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full">
+                <div className="flex items-center gap-2 md:gap-4">
+                  <span className="hidden sm:inline text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full truncate max-w-[120px]">
                     {user?.email || 'User'}
                   </span>
                   <button 
                     onClick={() => setIsDonateOpen(true)}
-                    className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-medium text-white hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg hover:shadow-blue-500/50"
+                    className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-white hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg hover:shadow-blue-500/50"
                     title="Support the project"
                   >
-                    Donate 💙
+                    <span className="hidden sm:inline">Donate</span>
+                    <span className="sm:hidden">$</span>
                   </button>
                   <button 
                     onClick={handleLogout}
-                    className="rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 text-sm font-medium text-white transition"
+                    className="rounded-lg bg-red-600 hover:bg-red-700 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-white transition"
                     title="Logout"
                   >
-                    Logout
+                    <span className="hidden sm:inline">Logout</span>
+                    <span className="sm:hidden">Exit</span>
                   </button>
                 </div>
               </header>
 
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-4 md:p-8">
                   
                   {/* Conditional Rendering for Tabs */}
                   {activeTab === 'wallets' ? (
@@ -1124,6 +1180,10 @@ const App = () => {
                   ) : activeTab === 'twitter' ? (
                       // TWITTER MANAGER VIEW
                       <TwitterComponent user={user} db={dbInstance} />
+
+                  ) : activeTab === 'tools' ? (
+                      // TOOLS VIEW
+                      <ToolsComponent user={user} db={dbInstance} aiProviders={aiProviders} />
 
                   ) : activeTab === 'youtube' ? (
                       // YOUTUBE CHANNEL VIEW
@@ -1623,9 +1683,6 @@ const App = () => {
               </div>
             </main>
           </div>
-        </RainbowKitProvider>
-      </WagmiProvider>
-    </QueryClientProvider>
   );
 };
 
